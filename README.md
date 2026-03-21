@@ -2,6 +2,8 @@
 
 An Anki add-on for macOS that displays your total due card count (New + Learning + Review) as a numeric badge on the Anki Dock icon.
 
+![Anki Dock icon showing a badge with the due card count](screenshot.png)
+
 ## Features
 
 - Shows total cards due across all decks as a Dock badge
