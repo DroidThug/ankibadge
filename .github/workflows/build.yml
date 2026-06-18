@@ -18,25 +18,19 @@ jobs:
 
       - name: Package Add-on
         run: |
-          # Navigate into the add-on directory
-          # (Make sure 'ankibadge' matches the exact name of your folder)
-          
-          # Zip the folder contents into an .ankiaddon file in the root directory.
-          # This excludes macOS junk files and Python caches.
-          zip -r ../AnkiDockBadge.ankiaddon . -x "*.DS_Store" "*__pycache__*" "*.pyc" ".git"
-          
-          cd ..
+          # Zip the root directory into AnkiBadge.ankiaddon
+          # Excludes git folders, python caches, and repo-specific files
+          zip -r AnkiBadge.ankiaddon . -x "*.git*" "*.github*" "*.DS_Store" "*__pycache__*" "*.pyc" "README.md" "screenshot.png"
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: AnkiDockBadge
-          path: AnkiDockBadge.ankiaddon
+          name: AnkiBadge
+          path: AnkiBadge.ankiaddon
 
       - name: Create GitHub Release
-        # Only run this step if the workflow was triggered by a tag push
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          files: AnkiDockBadge.ankiaddon
+          files: AnkiBadge.ankiaddon
           generate_release_notes: true
