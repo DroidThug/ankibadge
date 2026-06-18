@@ -1,9 +1,8 @@
 {
     "package": "ankibadge",
-    "name": "macOS Dock Badge",
-    "mod": 1774129719,
-    "min_point_version": 50,
+    "name": "AnkiBadge",
+    "min_point_version": 240400,
     "max_point_version": -1,
     "conflicts": [],
-    "human_version": "1.0"
+    "human_version": "1.1"
 }
