@@ -1,0 +1,43 @@
+name: Build and Release Add-on
+
+on:
+  push:
+    tags:
+      - 'v*' # Triggers automatically when you push a tag like v1.0.0
+  workflow_dispatch: # Allows you to manually trigger it from the GitHub Actions tab
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # Required to let GitHub Actions publish a release
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Package Add-on
+        run: |
+          # Navigate into the add-on directory
+          # (Make sure 'ankibadge' matches the exact name of your folder)
+          cd ankibadge
+          
+          # Zip the folder contents into an .ankiaddon file in the root directory.
+          # This excludes macOS junk files and Python caches.
+          zip -r ../AnkiDockBadge.ankiaddon . -x "*.DS_Store" "*__pycache__*" "*.pyc"
+          
+          cd ..
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: AnkiDockBadge
+          path: AnkiDockBadge.ankiaddon
+
+      - name: Create GitHub Release
+        # Only run this step if the workflow was triggered by a tag push
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: AnkiDockBadge.ankiaddon
+          generate_release_notes: true
