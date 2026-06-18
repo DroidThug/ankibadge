@@ -20,7 +20,6 @@ jobs:
         run: |
           # Navigate into the add-on directory
           # (Make sure 'ankibadge' matches the exact name of your folder)
-          cd ankibadge
           
           # Zip the folder contents into an .ankiaddon file in the root directory.
           # This excludes macOS junk files and Python caches.
