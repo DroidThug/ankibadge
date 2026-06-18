@@ -23,7 +23,7 @@ jobs:
           
           # Zip the folder contents into an .ankiaddon file in the root directory.
           # This excludes macOS junk files and Python caches.
-          zip -r ../AnkiDockBadge.ankiaddon . -x "*.DS_Store" "*__pycache__*" "*.pyc"
+          zip -r ../AnkiDockBadge.ankiaddon . -x "*.DS_Store" "*__pycache__*" "*.pyc" ".git"
           
           cd ..
 
