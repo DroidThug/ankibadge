@@ -1,23 +1,32 @@
-# Anki macOS Dock Badge
+# Anki Dock Badge
 
-An Anki add-on for macOS that displays your total due card count (New + Learning + Review) as a numeric badge on the Anki Dock icon.
+An Anki add-on that displays your total due card count (New + Learning + Review) as a numeric badge on the Anki Dock icon.
 
 ![Anki Dock icon showing a badge with the due card count](screenshot.png)
+
+## Platforms Supported
+| Platform | Support Level | Implementation Notes |
+| :--- | :--- | :--- |
+| **macOS** | Full Support | Standard native red badge icon on the Dock. |
+| **Windows 10 / 11** | Full Support | Native taskbar overlay icon using the Windows `ITaskbarList3` API. |
+| **Linux** | Conditional Support | Depends on the desktop environment; X11 and Wayland supported and requires D-Bus launcher badge support (e.g., GNOME, KDE Plasma). Fails silently on minimalist window managers like i3 or openbox. |
 
 ## Features
 
 - Shows total cards due across all decks as a Dock badge
 - Clears the badge automatically when no cards are due
-- Updates after answering a card, finishing a sync, or loading a collection
-- Compatible with Anki 24+ (Qt6), V3 scheduler, and FSRS
-- Falls back to a `ctypes`-based Objective-C bridge if PyObjC is unavailable
+- Updates after answering a card, finishing a sync and any changes to the queue
+- Compatible with Anki 24+ (Qt6.5+)
+- Utilizse Qt 6's QGuiApplication::setBadgeNumber() attribute supported on Qt6.5+
 
 ## Limitations
 
-- **macOS only** — does nothing on Windows or Linux
-- The badge disappears when Anki is closed; this is a macOS limitation (badges are owned by the running process)
+- The badge disappears when Anki is closed; (badges are owned by the running process)
 
 ## Installation
+### Via AnkiWeb
+
+Search for **Dock Badge** on [AnkiWeb](https://ankiweb.net/shared/addons).
 
 ### Manual
 
@@ -28,18 +37,15 @@ An Anki add-on for macOS that displays your total due card count (New + Learning
    ```
 3. Restart Anki
 
-### Via AnkiWeb
 
-Search for **Dock Badge** on [AnkiWeb](https://ankiweb.net/shared/addons).
 
 ## Requirements
 
-- macOS
 - Anki 24.x or later
 
 ## Disclaimer
 
-> This add-on was written with the assistance of Claude (Anthropic's AI assistant). It has been tested and works as described, but is provided as-is with no warranty. Use at your own risk.
+> This add-on was written with the assistance of Claude (Anthropic's AI assistant). It has been tested on macOS and works as described, but is provided as-is with no warranty. Use at your own risk.
 
 ## License
 
