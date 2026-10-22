@@ -7,7 +7,7 @@ An Anki add-on that displays your total due card count (New + Learning + Review)
 ## Platforms Supported
 | Platform | Support Level | Implementation Notes |
 | :--- | :--- | :--- |
-| **macOS** | Full Support | Native red badge on the Dock. Set through `UNUserNotificationCenter` (macOS 13+), so the last count stays on the icon after Anki quits. Falls back to Qt's `setBadgeNumber()` on older macOS. |
+| **macOS** | Full Support | Native red badge on the Dock. Set through `UNUserNotificationCenter` (macOS 13+), so the count stays on the icon after Anki quits and keeps updating while Anki is closed (learning cards coming due, day rollover), checked hourly. Falls back to Qt's `setBadgeNumber()` on older macOS. |
 | **Windows 10 / 11** | Full Support | Native taskbar overlay icon using the Windows `ITaskbarList3` API. |
 | **Linux** | Conditional Support | Depends on the desktop environment; X11 and Wayland supported and requires D-Bus launcher badge support (e.g., GNOME, KDE Plasma). Fails silently on minimalist window managers like i3 or openbox. |
 
@@ -18,11 +18,11 @@ An Anki add-on that displays your total due card count (New + Learning + Review)
 - Updates after answering a card, finishing a sync and any changes to the queue
 - Compatible with Anki 24+ (Qt6.5+)
 - Uses Qt 6's QGuiApplication::setBadgeNumber() (Qt 6.5+) on Windows and Linux
-- macOS: the badge persists after Anki quits (last count stays on the Dock icon)
+- macOS: the badge persists after Anki quits and is kept up to date while Anki is closed, via badge-only notifications scheduled at quit for the next 48 hours (hourly steps plus day rollovers)
 
 ## Limitations
 
-- macOS: the badge is not updated while Anki is closed; it shows the count from the last time Anki ran. macOS asks once to allow notifications (badge only) for Anki; if you decline, the badge falls back to disappearing on quit.
+- macOS: updates while Anki is closed run for 48 hours after you quit, in hourly steps; after that, or after a crash or force-quit, the badge stays at the last number until Anki is opened again. Studying on another device is not reflected until Anki syncs. macOS asks once to allow notifications (badge only) for Anki; if you decline, the add-on uses Qt's badge, which disappears on quit.
 - Windows/Linux: the badge disappears when Anki is closed (badges are owned by the running process)
 
 ## Installation

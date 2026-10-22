@@ -11,9 +11,12 @@ import ctypes
 import ctypes.util
 import logging
 import sys
+import time
 
 from aqt import mw, gui_hooks
 from aqt.qt import QGuiApplication
+
+from .projection import project_badge_counts
 
 log = logging.getLogger(__name__)
 
@@ -37,6 +40,8 @@ class _MacBadge:
             "/System/Library/Frameworks/UserNotifications.framework/UserNotifications"
         )
         libsys = ctypes.CDLL(ctypes.util.find_library("System"))
+        self.done_count = 0
+        self.granted = None  # unknown until the permission callback runs
         o = self._objc
         o.objc_getClass.restype = ctypes.c_void_p
         o.objc_getClass.argtypes = [ctypes.c_char_p]
@@ -54,15 +59,23 @@ class _MacBadge:
         self._refs = getattr(self, "_refs", []) + [(fn, desc, blk)]
         return ctypes.addressof(blk)
 
-    @staticmethod
-    def _on_auth(_blk, granted, err) -> None:
+    def _on_auth(self, _blk, granted, err) -> None:
+        self.granted = bool(granted)
         if not granted:
             log.warning("ankibadge: notification badge permission not granted (err=%s)", err)
 
-    @staticmethod
-    def _on_done(_blk, err) -> None:
+    def _on_done(self, _blk, err) -> None:
+        self.done_count += 1
         if err:
-            log.warning("ankibadge: setBadgeCount failed (err=%s)", err)
+            log.warning("ankibadge: badge request failed (err=%s)", err)
+
+    def wait_for_acks(self, since: int, expected: int, timeout: float = 3.0) -> None:
+        """Block until `expected` completion callbacks arrived after count `since`.
+        Requests are sent asynchronously; quitting before they are acknowledged
+        can drop them."""
+        deadline = time.time() + timeout
+        while self.done_count - since < expected and time.time() < deadline:
+            time.sleep(0.02)
 
     def _msg(self, obj, sel, argtypes=(), args=(), restype=ctypes.c_void_p):
         send = self._objc.objc_msgSend
@@ -81,6 +94,28 @@ class _MacBadge:
     def set(self, n: int) -> None:
         self._msg(self._center(), "setBadgeCount:withCompletionHandler:",
                   (ctypes.c_long, ctypes.c_void_p), (n, self._done_block), restype=None)
+
+    def clear_pending(self) -> None:
+        self._msg(self._center(), "removeAllPendingNotificationRequests", restype=None)
+
+    def schedule(self, n: int, seconds: float, ident: str) -> None:
+        """Badge-only local notification (no title/body/sound): macOS applies the
+        number at the given time even if Anki is no longer running."""
+        string = self._msg(self._objc.objc_getClass(b"NSString"), "stringWithUTF8String:",
+                           (ctypes.c_char_p,), (ident.encode(),))
+        number = self._msg(self._objc.objc_getClass(b"NSNumber"), "numberWithInt:",
+                           (ctypes.c_int,), (n,))
+        content = self._msg(self._objc.objc_getClass(b"UNMutableNotificationContent"), "new")
+        self._msg(content, "setBadge:", (ctypes.c_void_p,), (number,), restype=None)
+        trigger = self._msg(self._objc.objc_getClass(b"UNTimeIntervalNotificationTrigger"),
+                            "triggerWithTimeInterval:repeats:", (ctypes.c_double, ctypes.c_bool),
+                            (float(seconds), False))
+        request = self._msg(self._objc.objc_getClass(b"UNNotificationRequest"),
+                            "requestWithIdentifier:content:trigger:",
+                            (ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p), (string, content, trigger))
+        self._msg(self._center(), "addNotificationRequest:withCompletionHandler:",
+                  (ctypes.c_void_p, ctypes.c_void_p), (request, self._done_block), restype=None)
+        self._msg(content, "release", restype=None)  # created with +new; the center keeps its own reference
 
 
 _mac = None
@@ -103,7 +138,7 @@ def _get_due_count() -> int:
 def update_badge() -> None:
     try:
         n = _get_due_count()
-        if _mac is not None:
+        if _mac is not None and _mac.granted is not False:
             _mac.set(n)  # 0 clears it
         elif _can_set_badge:
             _app.setBadgeNumber(n)
@@ -111,10 +146,45 @@ def update_badge() -> None:
         log.warning("ankibadge: failed to update badge: %s", e)
 
 
+def _clear_scheduled() -> None:
+    """Drop badge updates queued at the last quit, so a stale number can't fire
+    while Anki is open."""
+    if _mac is None:
+        return
+    try:
+        _mac.clear_pending()
+    except Exception as e:
+        log.warning("ankibadge: failed to clear scheduled badge updates: %s", e)
+
+
+def schedule_for_quit() -> None:
+    """Queue the numbers Anki will have in the coming hours, so the badge keeps
+    updating while it is closed (learning cards coming due, the day rollover)."""
+    if _mac is None or _mac.granted is False or mw.col is None:
+        return
+    try:
+        now = int(time.time())
+        _clear_scheduled()
+        points = project_badge_counts(mw.col, now)
+        sent = _mac.done_count
+        for i, (when, n) in enumerate(points):
+            _mac.schedule(n, max(5, when - now), f"ankibadge-{i}")
+        _mac.wait_for_acks(sent, len(points))
+    except Exception as e:
+        log.warning("ankibadge: failed to schedule badge updates: %s", e)
+
+
 def _on_change(changes, _handler) -> None:
     if changes.study_queues:
         update_badge()
 
+
+def _on_collection_loaded(_col) -> None:
+    _clear_scheduled()
+    update_badge()  # first paint
+
+
 gui_hooks.main_window_did_init.append(update_badge)
-gui_hooks.collection_did_load.append(lambda _col: update_badge())  # first paint
+gui_hooks.collection_did_load.append(_on_collection_loaded)
 gui_hooks.operation_did_execute.append(_on_change)                 # everything after
+gui_hooks.profile_will_close.append(schedule_for_quit)
