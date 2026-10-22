@@ -18,11 +18,11 @@ An Anki add-on that displays your total due card count (New + Learning + Review)
 - Updates after answering a card, finishing a sync and any changes to the queue
 - Compatible with Anki 24+ (Qt6.5+)
 - Uses Qt 6's QGuiApplication::setBadgeNumber() (Qt 6.5+) on Windows and Linux
-- macOS: the badge persists after Anki quits and is kept up to date while Anki is closed, via badge-only notifications scheduled at quit for the next 48 hours (hourly steps plus day rollovers)
+- macOS: the badge persists after Anki quits and is kept up to date while Anki is closed, via badge-only notifications scheduled at quit for the next 7 days (hourly steps for the first 48 hours, then each day rollover)
 
 ## Limitations
 
-- macOS: updates while Anki is closed run for 48 hours after you quit, in hourly steps; after that, or after a crash or force-quit, the badge stays at the last number until Anki is opened again. Studying on another device is not reflected until Anki syncs. macOS asks once to allow notifications (badge only) for Anki; if you decline, the add-on uses Qt's badge, which disappears on quit.
+- macOS: updates while Anki is closed run for 7 days after you quit; after that, or after a crash or force-quit, the badge stays at the last number until Anki is opened again. Studying on another device is not reflected until Anki syncs. macOS asks once to allow notifications (badge only) for Anki; if you decline, the add-on uses Qt's badge, which disappears on quit.
 - Windows/Linux: the badge disappears when Anki is closed (badges are owned by the running process)
 
 ## Installation

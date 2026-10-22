@@ -15,6 +15,10 @@ from typing import Optional
 
 HOUR = 3600
 DAY = 86400
+HORIZON_HOURS = 7 * 24  # how far ahead to project
+HOURLY_HOURS = 48  # learning cards come due within about a day, so only the
+# first two days need hourly steps; after that only day rollovers change the number
+MAX_POINTS = 50  # stay well under macOS's pending-notification limit
 
 
 def _limit(col, deck_id: int, deck_key: str, conf_key: str) -> Optional[int]:
@@ -96,13 +100,13 @@ def _learning_due(col, by: int, day: int) -> int:
 
 
 def project_badge_counts(
-    col, now: Optional[int] = None, hours: int = 48
+    col, now: Optional[int] = None, hours: int = HORIZON_HOURS
 ) -> list[tuple[int, int]]:
     """Return [(epoch_second, badge_number)] for each moment the number changes.
 
-    Evaluated hourly plus at each day rollover within the horizon. The first
-    value is compared against the number right now, so an unchanged number
-    is never rescheduled.
+    Evaluated hourly for the first HOURLY_HOURS plus at each day rollover within
+    the horizon, capped at MAX_POINTS. The first value is compared against the
+    number right now, so an unchanged number is never rescheduled.
     """
     now = int(time.time()) if now is None else now
     sched = col.sched
@@ -110,9 +114,14 @@ def project_badge_counts(
     cutoff = sched.day_cutoff
 
     horizon = now + hours * HOUR
-    rollovers = [c for c in (cutoff, cutoff + DAY, cutoff + 2 * DAY) if c <= horizon]
+    rollovers = []
+    c = cutoff
+    while c <= horizon:
+        rollovers.append(c)
+        c += DAY
     moments = sorted(
-        {now + h * HOUR for h in range(1, hours + 1)} | set(rollovers)
+        {now + h * HOUR for h in range(1, min(hours, HOURLY_HOURS) + 1)}
+        | set(rollovers)
     )
 
     tree = sched.deck_due_tree()
@@ -134,4 +143,4 @@ def project_badge_counts(
         if value != last:
             points.append((t, value))
             last = value
-    return points
+    return points[:MAX_POINTS]
