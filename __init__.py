@@ -1,6 +1,7 @@
 """
 Anki Dock/Taskbar Badge Add-on (fork of DroidThug/ankibadge)
-Shows total due cards (New + Learning + Review) as a badge on the app icon.
+Shows due cards as a badge on the app icon: New + Learning + Review by default,
+or the subset chosen in the add-on config.
 
 On macOS the badge is set through UNUserNotificationCenter instead of the Dock
 tile, so the last number stays on the Anki icon after Anki quits. Other
@@ -16,7 +17,8 @@ import time
 from aqt import mw, gui_hooks
 from aqt.qt import QGuiApplication
 
-from .projection import project_badge_counts
+from .projection import badge_number, project_badge_counts
+from .settings import open_settings
 
 log = logging.getLogger(__name__)
 
@@ -128,11 +130,15 @@ if sys.platform == "darwin":
         _mac = None
 
 
+def _include() -> dict:
+    return mw.addonManager.getConfig(__name__) or {}
+
+
 def _get_due_count() -> int:
     if mw.col is None:
         return 0
     tree = mw.col.sched.deck_due_tree()
-    return tree.new_count + tree.learn_count + tree.review_count
+    return badge_number(tree.new_count, tree.learn_count, tree.review_count, _include())
 
 
 def update_badge() -> None:
@@ -165,7 +171,7 @@ def schedule_for_quit() -> None:
     try:
         now = int(time.time())
         _clear_scheduled()
-        points = project_badge_counts(mw.col, now)
+        points = project_badge_counts(mw.col, now, include=_include())
         sent = _mac.done_count
         for i, (when, n) in enumerate(points):
             _mac.schedule(n, max(5, when - now), f"ankibadge-{i}")
@@ -188,3 +194,4 @@ gui_hooks.main_window_did_init.append(update_badge)
 gui_hooks.collection_did_load.append(_on_collection_loaded)
 gui_hooks.operation_did_execute.append(_on_change)                 # everything after
 gui_hooks.profile_will_close.append(schedule_for_quit)
+mw.addonManager.setConfigAction(__name__, lambda: open_settings(__name__, update_badge))

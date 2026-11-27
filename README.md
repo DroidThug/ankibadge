@@ -25,6 +25,10 @@ An Anki add-on that displays your total due card count (New + Learning + Review)
 - macOS: updates while Anki is closed run for 7 days after you quit; after that, or after a crash or force-quit, the badge stays at the last number until Anki is opened again. Studying on another device is not reflected until Anki syncs. macOS asks once to allow notifications (badge only) for Anki; if you decline, the add-on uses Qt's badge, which disappears on quit.
 - Windows/Linux: the badge disappears when Anki is closed (badges are owned by the running process)
 
+## Configuration
+
+By default the badge counts New + Learning + Review cards. To count fewer, open Tools → Add-ons, select AnkiBadge, click Config and untick the cards to leave out. The badge updates when you click OK.
+
 ## Installation
 ### Via AnkiWeb
 
