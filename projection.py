@@ -21,6 +21,20 @@ HOURLY_HOURS = 48  # learning cards come due within about a day, so only the
 MAX_POINTS = 50  # stay well under macOS's pending-notification limit
 
 
+def is_counted(include: dict, key: str) -> bool:
+    """Whether the add-on config counts `key`; a missing key counts."""
+    return bool(include.get(key, True))
+
+
+def badge_number(new: int, learning: int, review: int, include: dict) -> int:
+    """Sum of the counts the add-on config selects."""
+    return (
+        (new if is_counted(include, "count_new") else 0)
+        + (learning if is_counted(include, "count_learning") else 0)
+        + (review if is_counted(include, "count_review") else 0)
+    )
+
+
 def _limit(col, deck_id: int, deck_key: str, conf_key: str) -> Optional[int]:
     """Per-day limit for a deck, or None if it has none (e.g. filtered decks)."""
     deck = col.decks.get(deck_id)
@@ -62,8 +76,8 @@ def _capped(
     return review, new
 
 
-def _available_on_day(col, day: int) -> int:
-    """New + review cards that will be available on collection day `day`,
+def _available_on_day(col, day: int) -> tuple[int, int]:
+    """(review, new) cards that will be available on collection day `day`,
     assuming no studying happens in between."""
     review: dict[int, int] = defaultdict(int)
     for did, n in col.db.all(
@@ -84,9 +98,8 @@ def _available_on_day(col, day: int) -> int:
     except Exception:
         ignores = False
     root = col.decks.deck_tree()
-    return sum(
-        sum(_capped(col, child, review, new, ignores)) for child in root.children
-    )
+    capped = [_capped(col, child, review, new, ignores) for child in root.children]
+    return sum(r for r, _ in capped), sum(n for _, n in capped)
 
 
 def _learning_due(col, by: int, day: int) -> int:
@@ -100,7 +113,10 @@ def _learning_due(col, by: int, day: int) -> int:
 
 
 def project_badge_counts(
-    col, now: Optional[int] = None, hours: int = HORIZON_HOURS
+    col,
+    now: Optional[int] = None,
+    hours: int = HORIZON_HOURS,
+    include: Optional[dict] = None,
 ) -> list[tuple[int, int]]:
     """Return [(epoch_second, badge_number)] for each moment the number changes.
 
@@ -109,6 +125,7 @@ def project_badge_counts(
     number right now, so an unchanged number is never rescheduled.
     """
     now = int(time.time()) if now is None else now
+    include = include or {}
     sched = col.sched
     today = sched.today
     cutoff = sched.day_cutoff
@@ -125,21 +142,21 @@ def project_badge_counts(
     )
 
     tree = sched.deck_due_tree()
-    remaining_today = tree.new_count + tree.review_count
-    available_by_day: dict[int, int] = {}
+    remaining_today = (tree.review_count, tree.new_count)
+    available_by_day: dict[int, tuple[int, int]] = {}
 
-    last = tree.new_count + tree.learn_count + tree.review_count
+    last = badge_number(tree.new_count, tree.learn_count, tree.review_count, include)
     points: list[tuple[int, int]] = []
     for t in moments:
         passed = sum(1 for r in rollovers if r <= t)
         day = today + passed
         if passed == 0:
-            base = remaining_today
+            review, new = remaining_today
         else:
             if day not in available_by_day:
                 available_by_day[day] = _available_on_day(col, day)
-            base = available_by_day[day]
-        value = base + _learning_due(col, t, day)
+            review, new = available_by_day[day]
+        value = badge_number(new, _learning_due(col, t, day), review, include)
         if value != last:
             points.append((t, value))
             last = value
